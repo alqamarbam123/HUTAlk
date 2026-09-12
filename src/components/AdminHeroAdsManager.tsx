@@ -437,7 +437,7 @@ export const AdminHeroAdsManager: React.FC<AdminHeroAdsManagerProps> = ({
                       <div className="font-bold text-gray-900 leading-snug">
                         {ad.title}{' '}
                         {ad.highlightText && (
-                          <span className="text-[#FF5A36] underline decoration-wavy underline-offset-2">
+                          <span className="text-[#FF5A36]">
                             {ad.highlightText}
                           </span>
                         )}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { EventItem } from '../types';
 export type { EventItem };
+import { DualToneHeading } from './DualToneHeading';
 import {
   Calendar,
   MapPin,
@@ -408,12 +409,27 @@ export const HutaInPage: React.FC<HutaInPageProps> = ({
                   IN
                 </span>
               </div>
-              <h1 className="text-lg sm:text-xl font-bold text-gray-200 mt-2">
-                Discover Festivals, Expos & Weekend Happenings in Sri Lanka
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-400 mt-1 max-w-xl leading-relaxed">
-                Connect with local communities, reserve free and paid event passes, and explore weekend exhibitions across Colombo, Kandy, Galle, and beyond.
-              </p>
+              <div className="mt-3">
+                <DualToneHeading
+                  as="h1"
+                  size="lg"
+                  theme="dark"
+                  primaryText="Discover"
+                  accentText={[
+                    'Festivals & Expos 🎪',
+                    'Weekend Happenings 🎉',
+                    'Community Meetups 🤝',
+                    'Live Island Events 🇱🇰',
+                  ]}
+                  suffixText="in Sri Lanka"
+                  animationType="rotate"
+                  rotationInterval={3500}
+                  align="left"
+                  showUnderline={false}
+                  subtitle="Connect with local communities, reserve free and paid event passes, and explore weekend exhibitions across Colombo, Kandy, Galle, and beyond."
+                  id="huta-in-dual-tone-heading"
+                />
+              </div>
             </div>
 
             {/* Event Search Input */}

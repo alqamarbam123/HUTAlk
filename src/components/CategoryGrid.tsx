@@ -12,6 +12,7 @@ import {
   LucideIcon,
 } from 'lucide-react';
 import { Listing } from '../types';
+import { DualToneHeading } from './DualToneHeading';
 
 interface CategoryGridProps {
   currentCategory: string;
@@ -85,19 +86,26 @@ export const CategoryGrid: React.FC<CategoryGridProps> = ({
 
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-6">
-      {/* Title & Subtitle matching the screenshot */}
+      {/* Dual-Tone Title & Subtitle */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
         className="text-center mb-8"
       >
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#111217] tracking-tight">
-          Explore Our Categories
-        </h2>
-        <p className="text-gray-500 text-sm sm:text-base mt-2 max-w-xl mx-auto font-medium">
-          Everything Sri Lanka needs to buy and sell — all in one place.
-        </p>
+        <DualToneHeading
+          as="h2"
+          size="xl"
+          theme="light"
+          primaryText="Explore Our"
+          accentText={['Popular Categories', 'Top Sectors', 'Marketplace Hubs']}
+          animationType="rotate"
+          rotationInterval={3600}
+          align="center"
+          showUnderline={false}
+          subtitle="Everything Sri Lanka needs to buy and sell — all in one place."
+          id="categories-dual-tone-heading"
+        />
       </motion.div>
 
       {/* Grid matching the screenshot (6 columns on desktop so 1st row has 6 items, 2nd row has 2 items) */}

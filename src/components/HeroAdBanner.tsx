@@ -13,6 +13,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { HeroAd, HeroAdSettings } from '../types';
+import { DualToneHeading } from './DualToneHeading';
 
 interface HeroAdBannerProps {
   heroAds?: HeroAd[];
@@ -181,30 +182,39 @@ export const HeroAdBanner: React.FC<HeroAdBannerProps> = ({
       <div className="relative min-h-[160px] sm:min-h-[175px] flex items-center justify-center">
         <AnimatePresence mode="wait">
           {currentSlide.type === 'default' ? (
-            /* DEFAULT HERO SLIDE (Original Clean Look) */
+            /* DEFAULT HERO SLIDE (Dual-Tone Animated Heading System) */
             <motion.div
               key="default-slide"
               initial={{ opacity: 0, y: 8, scale: 0.99 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -8, scale: 0.99 }}
               transition={{ duration: 0.35, ease: 'easeOut' }}
-              className="w-full space-y-3 text-center"
+              className="w-full text-center"
             >
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-xs font-semibold text-gray-300 border border-white/10 shadow-xs">
-                <Sparkles className="w-3.5 h-3.5 text-[#FF5A36]" />
-                <span>Sri Lanka's Direct Buyer-Seller Marketplace</span>
-              </div>
-
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
-                Find Anything in{' '}
-                <span className="text-[#FF5A36] underline decoration-wavy decoration-[#FF5A36]/40 underline-offset-8">
-                  Sri Lanka
-                </span>
-              </h1>
-
-              <p className="text-gray-400 text-xs sm:text-sm max-w-xl mx-auto font-medium leading-relaxed">
-                Properties, Vehicles, Classifieds, Jobs & Local Services across all 25 districts with direct WhatsApp & telephone contact.
-              </p>
+              <DualToneHeading
+                as="h1"
+                size="hero"
+                theme="dark"
+                primaryText="Find Anything in"
+                accentText={[
+                  'Sri Lanka 🇱🇰',
+                  'Colombo & 25 Districts',
+                  'Vehicles & Motors 🚗',
+                  'Homes & Land Plots 🏡',
+                  'Smart Electronics 📱',
+                  'Verified Deals 🏷️',
+                ]}
+                badge={{
+                  text: "Sri Lanka's Direct Buyer-Seller Marketplace",
+                  icon: <Sparkles className="w-3.5 h-3.5 text-[#FF5A36]" />,
+                }}
+                subtitle="Properties, Vehicles, Classifieds, Jobs & Local Services across all 25 districts with direct WhatsApp & telephone contact."
+                animationType="rotate"
+                rotationInterval={3200}
+                showUnderline={false}
+                align="center"
+                id="hero-dual-tone-heading"
+              />
             </motion.div>
           ) : (
             /* CUSTOM ADMIN ANIMATED AD SLIDE */
@@ -255,7 +265,7 @@ export const HeroAdBanner: React.FC<HeroAdBannerProps> = ({
                     <h1 className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight leading-snug">
                       {ad.title}{' '}
                       {ad.highlightText && (
-                        <span className={`${styles.highlight} underline decoration-wavy underline-offset-6`}>
+                        <span className={styles.highlight}>
                           {ad.highlightText}
                         </span>
                       )}
