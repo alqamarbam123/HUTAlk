@@ -28,8 +28,11 @@ import {
   ChevronRight,
   Smartphone,
   Download,
+  Facebook,
 } from 'lucide-react';
 import { formatLKR } from './ListingsSection';
+import { FacebookFlyerModal } from './FacebookFlyerModal';
+import { api } from '../services/api';
 
 interface UserDashboardProps {
   currentUser: User | null;
@@ -75,6 +78,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
   onToast,
 }) => {
   const [activeTab, setActiveTab] = useState<'myads' | 'favorites' | 'sellertips'>('myads');
+  const [promoListing, setPromoListing] = useState<Listing | null>(null);
 
   // Helper to normalize phone numbers
   const normalizePhone = (raw?: string): string => {
@@ -104,6 +108,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
   // If user is a Guest (not logged in)
   if (!currentUser) {
+    const guestListingIds = api.getGuestListingIds();
+    const guestAds = listings.filter((l) => guestListingIds.includes(l.id));
+
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-300">
         {/* Guest Welcome Hero */}
@@ -195,6 +202,96 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
           </div>
         </div>
 
+        {/* Guest Ads on this Device (Self-Service Edit) */}
+        {guestAds.length > 0 && (
+          <div className="bg-white rounded-3xl border-2 border-orange-200/90 p-6 sm:p-8 shadow-md">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-gray-100">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-xl font-black text-gray-900">Your Advertisements on this Device</h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-orange-100 text-[#FF5A36]">
+                    {guestAds.length} {guestAds.length === 1 ? 'Ad' : 'Ads'}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Posted in Guest Mode. You have full edit access on this browser to update prices, photos, and descriptions.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onOpenUserAuth && onOpenUserAuth('login')}
+                className="text-xs font-bold text-[#FF5A36] hover:text-[#E04826] flex items-center gap-1.5 transition-colors self-start sm:self-auto cursor-pointer"
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+                <span>Sync to Mobile Account</span>
+              </button>
+            </div>
+
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              {guestAds.map((ad) => (
+                <div
+                  key={ad.id}
+                  className="border border-gray-200 rounded-2xl p-4 hover:border-[#FF5A36]/50 transition-all flex flex-col sm:flex-row gap-4 bg-gray-50/50 hover:bg-white"
+                >
+                  <img
+                    src={ad.image || 'https://images.unsplash.com/photo-1581291518655-9523c932edcf?w=300&q=80'}
+                    alt={ad.title}
+                    className="w-full sm:w-28 h-28 object-cover rounded-xl shrink-0 cursor-pointer"
+                    onClick={() => onSelectListing(ad)}
+                  />
+                  <div className="flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded bg-gray-200 text-gray-700">
+                          {ad.category}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${ad.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {ad.status === 'approved' ? 'Live on Site' : 'Pending Approval'}
+                        </span>
+                      </div>
+                      <h3
+                        onClick={() => onSelectListing(ad)}
+                        className="font-bold text-sm text-gray-900 hover:text-[#FF5A36] transition-colors mt-1.5 line-clamp-1 cursor-pointer"
+                      >
+                        {ad.title}
+                      </h3>
+                      <p className="text-[#FF5A36] font-black text-sm mt-0.5">
+                        {ad.pricingType === 'quote' ? 'Call for Quote' : formatLKR(ad.price)}
+                      </p>
+                    </div>
+                    <div className="mt-3 pt-3 border-t border-gray-200/80 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onEditListing(ad)}
+                        className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 bg-[#FF5A36] hover:bg-[#E04826] text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                        <span>Edit Ad & Price</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onSelectListing(ad)}
+                        className="px-3 py-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                        title="View listing"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDeleteListing(ad.id)}
+                        className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
+                        title="Delete ad"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Quick Edit Ad Banner for Existing Advertisers */}
         <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-orange-500/10 border border-orange-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -203,10 +300,10 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             </div>
             <div>
               <h4 className="font-extrabold text-sm sm:text-base text-gray-950">
-                Need to change or update your posted advertisement?
+                Need to change or update an advertisement from another phone or PC?
               </h4>
               <p className="text-xs text-gray-600 mt-0.5">
-                Log in with your <strong className="text-[#FF5A36]">Mobile Phone (OTP)</strong> or <strong className="text-gray-900">User ID</strong> to edit your price, photos, or description instantly.
+                Enter your <strong className="text-[#FF5A36]">Mobile Phone Number</strong> to verify via instant SMS OTP code and update prices or details anytime.
               </p>
             </div>
           </div>
@@ -216,7 +313,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             className="shrink-0 px-4 py-2.5 bg-[#FF5A36] hover:bg-[#E04826] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center gap-1.5 cursor-pointer hover:scale-102"
           >
             <Smartphone className="w-3.5 h-3.5" />
-            <span>Edit My Ads via OTP / ID</span>
+            <span>Verify Phone & Edit Ad</span>
           </button>
         </div>
 
@@ -666,13 +763,13 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                       />
                       <div className="absolute top-2 left-2">
                         <span
-                          className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
+                          className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1 ${
                             item.status === 'approved'
                               ? 'bg-emerald-600 text-white'
                               : 'bg-amber-500 text-white'
                           }`}
                         >
-                          {item.status}
+                          {item.status === 'approved' ? '✓ Live' : '⏳ Pending Review'}
                         </span>
                       </div>
                     </div>
@@ -698,6 +795,18 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
                         {activeTab === 'myads' ? (
                           <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPromoListing(item);
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-[#1877F2] bg-blue-50 hover:bg-[#1877F2] hover:text-white transition-all cursor-pointer shadow-2xs"
+                              title="Download photos or generate Facebook Promo Flyer"
+                            >
+                              <Facebook className="w-3.5 h-3.5 fill-current" />
+                              <span>Facebook Promo</span>
+                            </button>
                             <button
                               type="button"
                               onClick={(e) => {
@@ -806,6 +915,13 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
           </div>
         )}
       </div>
+
+      {/* Facebook Promo Flyer & Image Downloader Modal */}
+      <FacebookFlyerModal
+        listing={promoListing}
+        isOpen={Boolean(promoListing)}
+        onClose={() => setPromoListing(null)}
+      />
     </div>
   );
 };

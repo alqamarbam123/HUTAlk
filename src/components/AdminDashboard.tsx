@@ -148,7 +148,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [changeSuccess, setChangeSuccess] = useState('');
 
   // Live Launch & Auto-Approve state
-  const [autoApprove, setAutoApprove] = useState(true);
+  const [autoApprove, setAutoApprove] = useState(false);
   const [isUpdatingAutoApprove, setIsUpdatingAutoApprove] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [isClearingAll, setIsClearingAll] = useState(false);
@@ -971,8 +971,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 : 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30'
             }`}
           >
-            <span className={`w-2 h-2 rounded-full ${autoApprove ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-            <span>{autoApprove ? 'Auto-Approve Ads: ON' : 'Manual Review: ON'}</span>
+            <span className={`w-2 h-2 rounded-full ${autoApprove ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-pulse'}`} />
+            <span>{autoApprove ? 'Auto-Approve Ads: ON' : 'Admin Approval Required: ON'}</span>
           </button>
 
           {/* Fresh Launch Clear Ads */}

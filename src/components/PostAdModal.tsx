@@ -15,7 +15,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Info,
-  Images
+  Images,
+  CheckCircle2,
+  Check
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -60,11 +62,12 @@ const compressImage = (file: File): Promise<string> => {
 interface PostAdModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmitAd: (data: Partial<Listing>, isEditId?: string) => Promise<void>;
+  onSubmitAd: (data: Partial<Listing>, isEditId?: string) => Promise<Listing | void>;
   editingListing: Listing | null;
   currentUser: User | null;
   isAdminLoggedIn?: boolean;
   onToast: (message: string, type?: 'success' | 'error' | 'info') => void;
+  onSelectListing?: (listing: Listing) => void;
 }
 
 const CATEGORIES = [
@@ -144,6 +147,7 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
   currentUser,
   isAdminLoggedIn,
   onToast,
+  onSelectListing,
 }) => {
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Electronics');
@@ -163,15 +167,18 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
   const [serviceArea, setServiceArea] = useState('Colombo & Greater Suburbs');
   const [isEmergency247, setIsEmergency247] = useState(false);
 
-  // Admin Overrides & Status Controls
-  const [adminStatus, setAdminStatus] = useState<'approved' | 'pending' | 'rejected'>('approved');
-  const [adminIsFeatured, setAdminIsFeatured] = useState(false);
-  const [adminIsVerifiedPro, setAdminIsVerifiedPro] = useState(false);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [submittedResult, setSubmittedResult] = useState<{
+    id: string;
+    title: string;
+    phone: string;
+    price: number;
+    listing?: Listing;
+  } | null>(null);
 
   useEffect(() => {
+    setSubmittedResult(null);
     if (editingListing) {
       setTitle(editingListing.title);
       setCategory(editingListing.category);
@@ -194,9 +201,6 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
       setPricingType(editingListing.pricingType || (editingListing.category === 'Services' ? 'starting_at' : 'fixed'));
       setServiceArea(editingListing.serviceArea || 'Colombo & Greater Suburbs');
       setIsEmergency247(Boolean(editingListing.isEmergency247));
-      setAdminStatus(editingListing.status || 'approved');
-      setAdminIsFeatured(Boolean(editingListing.isFeatured));
-      setAdminIsVerifiedPro(Boolean(editingListing.isVerifiedPro));
     } else {
       // Defaults
       setTitle('');
@@ -211,9 +215,6 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
       setPricingType('starting_at');
       setServiceArea('Colombo & Greater Suburbs');
       setIsEmergency247(false);
-      setAdminStatus('approved');
-      setAdminIsFeatured(false);
-      setAdminIsVerifiedPro(false);
     }
   }, [editingListing, isOpen]);
 
@@ -364,15 +365,25 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
         pricingType: isService ? pricingType : 'fixed',
         serviceArea: isService ? serviceArea : undefined,
         isEmergency247: isService ? isEmergency247 : false,
-        ...(isAdminLoggedIn ? {
-          status: adminStatus,
-          isFeatured: adminIsFeatured,
-          isVerifiedPro: isService ? adminIsVerifiedPro : false,
+        ...(editingListing ? {
+          status: editingListing.status,
+          isFeatured: editingListing.isFeatured,
+          isVerifiedPro: editingListing.isVerifiedPro,
         } : {}),
       };
 
-      await onSubmitAd(payload, editingListing ? editingListing.id : undefined);
-      onClose();
+      const created = await onSubmitAd(payload, editingListing ? editingListing.id : undefined);
+      if (!editingListing) {
+        setSubmittedResult({
+          id: (created as Listing)?.id || 'new',
+          title: payload.title || 'Your advertisement',
+          phone: payload.phone || '',
+          price: payload.price || 0,
+          listing: (created as Listing) || undefined,
+        });
+      } else {
+        onClose();
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save listing';
       onToast(msg, 'error');
@@ -398,36 +409,146 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
         className="bg-white rounded-3xl max-w-xl w-full overflow-hidden shadow-2xl relative my-8 border border-gray-100 p-6 sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-xl font-extrabold text-[#181920]">
-                {isAdminLoggedIn && editingListing
-                  ? 'Admin: Edit Listing Details'
-                  : (editingListing ? 'Edit Your Advertisement' : 'Post an Ad on HUTA.lk')}
+        {submittedResult ? (
+          /* Submission Confirmation & Edit Guide */
+          <div className="py-2 space-y-6 animate-in fade-in duration-300">
+            <div className="text-center space-y-2.5">
+              <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200/80 shadow-xs">
+                <CheckCircle2 className="w-9 h-9" />
+              </div>
+              <h3 className="text-2xl font-black text-gray-900 tracking-tight">
+                Advertisement Submitted!
               </h3>
-              {isAdminLoggedIn && (
-                <span className="text-[10px] font-extrabold uppercase bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full border border-amber-300">
-                  Admin Master
-                </span>
-              )}
+              <p className="text-sm text-gray-600 max-w-md mx-auto">
+                <strong className="text-gray-900 font-semibold">"{submittedResult.title}"</strong> has been saved and is ready for buyers.
+              </p>
             </div>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {isAdminLoggedIn && editingListing
-                ? `Administrator Mode — Modify any listing parameter • ID: ${editingListing.id}`
-                : 'Reach thousands of prospective buyers across Sri Lanka'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+            {/* How to edit your ad or price anytime */}
+            <div className="bg-gradient-to-br from-orange-50/90 via-amber-50/60 to-orange-50/90 border border-orange-200/80 rounded-2xl p-5 space-y-3.5 shadow-xs">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#FF5A36]" />
+                <h4 className="text-xs font-black uppercase tracking-wider text-gray-900">
+                  How can you change price or details later?
+                </h4>
+              </div>
+
+              <div className="space-y-3 text-xs text-gray-700">
+                <div className="flex items-start gap-3 bg-white/70 p-2.5 rounded-xl border border-orange-100">
+                  <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-800 font-black flex items-center justify-center shrink-0 text-xs">
+                    1
+                  </div>
+                  <div>
+                    <strong className="text-gray-900 font-bold">On this device (Instant Edit):</strong>
+                    <p className="text-gray-600 mt-0.5 leading-snug">
+                      Your ad is automatically remembered on this browser! Just open your ad anytime and click <span className="text-[#FF5A36] font-bold">"Edit Ad & Change Price"</span>.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 bg-white/70 p-2.5 rounded-xl border border-orange-100">
+                  <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-800 font-black flex items-center justify-center shrink-0 text-xs">
+                    2
+                  </div>
+                  <div>
+                    <strong className="text-gray-900 font-bold">From any other phone or PC:</strong>
+                    <p className="text-gray-600 mt-0.5 leading-snug">
+                      Open your listing, tap <span className="text-blue-700 font-bold">"Edit My Ad & Price"</span>, and confirm via SMS verification code sent to your phone (<strong>{submittedResult.phone}</strong>).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 bg-white/70 p-2.5 rounded-xl border border-orange-100">
+                  <div className="w-6 h-6 rounded-lg bg-purple-100 text-purple-800 font-black flex items-center justify-center shrink-0 text-xs">
+                    3
+                  </div>
+                  <div>
+                    <strong className="text-gray-900 font-bold">Quick Price Updates:</strong>
+                    <p className="text-gray-600 mt-0.5 leading-snug">
+                      Drop your price or add a negotiable tag anytime to boost your listing's visibility to buyers across Sri Lanka.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-1">
+              {submittedResult.listing && onSelectListing ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (submittedResult.listing && onSelectListing) {
+                      onSelectListing(submittedResult.listing);
+                    }
+                    onClose();
+                  }}
+                  className="w-full sm:flex-1 py-3.5 px-4 bg-[#FF5A36] hover:bg-[#E04826] text-white text-sm font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.01]"
+                >
+                  <span>View My Advertisement</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              ) : null}
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full sm:w-auto px-6 py-3.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold rounded-xl transition-colors cursor-pointer"
+              >
+                Done / Marketplace
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xl font-extrabold text-[#181920]">
+                    {isAdminLoggedIn && editingListing
+                      ? 'Admin: Edit Listing Details'
+                      : (editingListing ? 'Edit Your Advertisement' : 'Post an Ad on HUTA.lk')}
+                  </h3>
+                  {isAdminLoggedIn && (
+                    <span className="text-[10px] font-extrabold uppercase bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full border border-amber-300">
+                      Admin Master
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {isAdminLoggedIn && editingListing
+                    ? `Administrator Mode — Modify any listing parameter • ID: ${editingListing.id}`
+                    : 'Reach thousands of prospective buyers across Sri Lanka'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Guest Posting & Edit Guarantee Notice */}
+            {!currentUser && !isAdminLoggedIn && !editingListing && (
+              <div className="mt-4 bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50 border border-orange-200/90 rounded-2xl p-3.5 flex items-start gap-3 shadow-2xs">
+                <div className="w-7 h-7 rounded-xl bg-[#FF5A36]/15 text-[#FF5A36] flex items-center justify-center shrink-0 mt-0.5">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div className="text-left flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-900">Posting without login</span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded">Zero Password Needed</span>
+                  </div>
+                  <p className="text-[11px] text-gray-600 mt-0.5 leading-snug">
+                    You can edit your price, photos, or details anytime directly from this device, or from any phone using SMS verification.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           {/* Title */}
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
@@ -825,64 +946,15 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
             />
           </div>
 
-          {/* Admin Moderation & Trust Badge Controls */}
-          {isAdminLoggedIn && (
-            <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-amber-900 font-bold text-xs uppercase tracking-wider">
-                  <ShieldCheck className="w-4 h-4 text-amber-600" />
-                  <span>Admin Moderation & Badge Controls</span>
-                </div>
-                {editingListing?.userId && (
-                  <span className="text-[10px] text-gray-500 font-mono">
-                    Author: {editingListing.userId}
-                  </span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Listing Status
-                  </label>
-                  <select
-                    value={adminStatus}
-                    onChange={(e) => setAdminStatus(e.target.value as 'approved' | 'pending' | 'rejected')}
-                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-semibold bg-white text-gray-800 outline-none focus:border-[#FF5A36]"
-                  >
-                    <option value="approved">Approved (Live)</option>
-                    <option value="pending">Pending (Review)</option>
-                    <option value="rejected">Rejected (Hidden)</option>
-                  </select>
-                </div>
-
-                <div className="space-y-2 pt-1 sm:pt-4">
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={adminIsFeatured}
-                      onChange={(e) => setAdminIsFeatured(e.target.checked)}
-                      className="w-4 h-4 text-[#FF5A36] accent-[#FF5A36] rounded"
-                    />
-                    <span className="text-xs font-semibold text-gray-800">
-                      Feature on Homepage
-                    </span>
-                  </label>
-
-                  {category === 'Services' && (
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <input
-                        type="checkbox"
-                        checked={adminIsVerifiedPro}
-                        onChange={(e) => setAdminIsVerifiedPro(e.target.checked)}
-                        className="w-4 h-4 text-emerald-600 accent-emerald-600 rounded"
-                      />
-                      <span className="text-xs font-semibold text-emerald-900">
-                        HUTA Verified Pro Badge
-                      </span>
-                    </label>
-                  )}
-                </div>
+          {/* Admin Quality Review Notice */}
+          {!editingListing && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-start gap-3 text-xs text-amber-950">
+              <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold text-amber-900">Admin Quality Review: </span>
+                <span className="text-amber-800">
+                  To protect buyers across Sri Lanka and maintain trusted, spam-free listings, all advertisements are reviewed and approved by our admin team before appearing live on the marketplace.
+                </span>
               </div>
             </div>
           )}
@@ -901,16 +973,16 @@ export const PostAdModal: React.FC<PostAdModalProps> = ({
                 </>
               ) : (
                 <span>
-                  {isAdminLoggedIn && editingListing
-                    ? 'Save Admin Changes'
-                    : editingListing
-                    ? 'Update Advertisement'
-                    : 'Publish Advertisement'}
+                  {editingListing
+                    ? 'Save & Update Advertisement'
+                    : 'Submit Advertisement for Approval'}
                 </span>
               )}
             </button>
           </div>
         </form>
+        </>
+      )}
       </motion.div>
     </motion.div>
   );

@@ -20,9 +20,15 @@ import {
   ChevronRight,
   Maximize2,
   Camera,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Download,
+  Facebook,
+  Check,
 } from 'lucide-react';
 import { formatLKR } from './ListingsSection';
+import { downloadImage } from '../utils/downloadHelper';
+import { FacebookFlyerModal } from './FacebookFlyerModal';
+import { api } from '../services/api';
 
 interface AdDetailModalProps {
   listing: Listing | null;
@@ -38,6 +44,7 @@ interface AdDetailModalProps {
   isCompared?: boolean;
   onToggleCompare?: (listing: Listing) => void;
   onRequestOwnerEdit?: (listing: Listing) => void;
+  onApproveListing?: (id: string) => void;
 }
 
 export const AdDetailModal: React.FC<AdDetailModalProps> = ({
@@ -54,6 +61,7 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
   isCompared = false,
   onToggleCompare,
   onRequestOwnerEdit,
+  onApproveListing,
 }) => {
   if (!listing) return null;
 
@@ -70,22 +78,37 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
   const userUsernamePhone = currentUser?.username ? normalizePhone(currentUser.username) : '';
   const adPhone = normalizePhone(listing.phone);
 
+  const guestAdIds = api.getGuestListingIds();
+  const isGuestAuthor = guestAdIds.includes(listing.id);
+
   const isOwner = Boolean(
-    currentUser && (
+    isGuestAuthor ||
+    (currentUser && (
       listing.userId === currentUser.id ||
       (userPhone && adPhone && userPhone === adPhone) ||
       (userUsernamePhone && adPhone && userUsernamePhone === adPhone)
-    )
+    ))
   );
   const canManage = isOwner || isAdminLoggedIn;
 
   const [activeIdx, setActiveIdx] = useState(0);
   const [isZoomOpen, setIsZoomOpen] = useState(false);
+  const [isFacebookFlyerOpen, setIsFacebookFlyerOpen] = useState(false);
+  const [isDownloadingPhoto, setIsDownloadingPhoto] = useState(false);
 
   useEffect(() => {
     setActiveIdx(0);
     setIsZoomOpen(false);
+    setIsFacebookFlyerOpen(false);
   }, [listing?.id]);
+
+  const handleDownloadActivePhoto = async () => {
+    if (!listing) return;
+    setIsDownloadingPhoto(true);
+    const safeTitle = (listing.title || 'listing').toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 25);
+    await downloadImage(currentPhoto, `${safeTitle}-photo-${activeIdx + 1}.jpg`);
+    setIsDownloadingPhoto(false);
+  };
 
   const gallery = (listing.images && listing.images.length > 0)
     ? listing.images
@@ -164,6 +187,28 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
                 <Camera className="w-3.5 h-3.5" />
                 <span>{activeIdx + 1} / {gallery.length}</span>
               </div>
+
+              {/* Facebook Flyer / Promo Trigger */}
+              <button
+                type="button"
+                onClick={() => setIsFacebookFlyerOpen(true)}
+                className="absolute bottom-3 left-3 bg-black/65 hover:bg-[#1877F2] text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg backdrop-blur-xs flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:scale-105"
+                title="Create Facebook Promo Flyer / Post"
+              >
+                <Facebook className="w-3.5 h-3.5 fill-current" />
+                <span>Facebook Flyer</span>
+              </button>
+
+              {/* Direct Image Download Button */}
+              <button
+                type="button"
+                onClick={handleDownloadActivePhoto}
+                disabled={isDownloadingPhoto}
+                className="absolute bottom-3 right-12 w-8 h-8 rounded-lg bg-black/60 hover:bg-black/80 text-white flex items-center justify-center transition-all hover:scale-105"
+                title="Download this image to your device"
+              >
+                <Download className="w-4 h-4" />
+              </button>
 
               {/* Zoom Button */}
               <button
@@ -321,6 +366,30 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
                 )}
               </div>
 
+              {/* Facebook & Social Media Promo Card */}
+              <div className="mb-3.5 bg-gradient-to-r from-blue-50/90 via-sky-50/50 to-orange-50/50 border border-blue-200/80 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-[#1877F2] text-white flex items-center justify-center shrink-0 shadow-sm">
+                    <Facebook className="w-4 h-4 fill-current" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                      <span>Post to Facebook & Social Media</span>
+                      <span className="text-[10px] bg-[#1877F2] text-white font-extrabold px-1.5 py-0.2 rounded">HD</span>
+                    </div>
+                    <p className="text-[11px] text-gray-500">Download photos & generate ready-made Facebook flyers</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsFacebookFlyerOpen(true)}
+                  className="shrink-0 inline-flex items-center gap-1.5 bg-white hover:bg-gray-50 text-[#1877F2] border border-blue-200 text-xs font-bold py-1.5 px-3 rounded-xl shadow-2xs transition-all hover:scale-102 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Get Flyer</span>
+                </button>
+              </div>
+
               {/* Meta pills */}
               <div className="flex flex-wrap gap-2 text-xs text-gray-600 mb-4">
                 <span className="inline-flex items-center gap-1 bg-gray-100 px-2.5 py-1 rounded-md font-medium">
@@ -422,12 +491,35 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
                 )}
               </div>
 
+              {/* Pending Admin Moderation Notice */}
+              {listing.status === 'pending' && (
+                <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3.5 text-xs text-amber-950 space-y-2 shadow-xs">
+                  <div className="flex items-center gap-2 font-bold text-amber-900">
+                    <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Pending Administrator Approval</span>
+                  </div>
+                  <p className="text-amber-800 leading-relaxed text-[11px]">
+                    This advertisement is awaiting administrator review and confirmation. It will become live on the public marketplace once approved.
+                  </p>
+                  {isAdminLoggedIn && onApproveListing && (
+                    <button
+                      type="button"
+                      onClick={() => onApproveListing(listing.id)}
+                      className="w-full mt-2 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-xs transition-colors cursor-pointer text-xs"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>Confirm & Approve Listing (Go Live Now)</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Author / Admin Controls */}
               {canManage ? (
-                <div className="pt-2 space-y-1.5">
-                  {isAdminLoggedIn && (
-                    <div className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg flex items-center justify-between">
-                      <span className="flex items-center gap-1">
+                <div className="pt-2 space-y-2">
+                  {isAdminLoggedIn ? (
+                    <div className="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-xl flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
                         <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
                         Admin Controls Active
                       </span>
@@ -435,46 +527,59 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
                         Status: {listing.status}
                       </span>
                     </div>
-                  )}
+                  ) : isGuestAuthor && !currentUser ? (
+                    <div className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl flex items-center justify-between shadow-2xs">
+                      <span className="flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Your Ad (Posted from this device)</span>
+                      </span>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-black">
+                        OWNER
+                      </span>
+                    </div>
+                  ) : null}
+
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => onEditListing(listing)}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-semibold py-2 rounded-lg transition-colors cursor-pointer"
+                      className="flex-1 flex items-center justify-center gap-2 bg-[#FF5A36] hover:bg-[#E04826] text-white text-xs font-bold py-2.5 px-4 rounded-xl transition-all shadow-sm cursor-pointer hover:scale-[1.01]"
                     >
                       <Edit className="w-3.5 h-3.5" />
-                      <span>{isAdminLoggedIn ? 'Edit Listing (Admin)' : 'Edit Ad'}</span>
+                      <span>{isAdminLoggedIn ? 'Edit Listing (Admin)' : 'Edit Ad & Change Price'}</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => onDeleteListing(listing.id)}
-                      className="flex-1 flex items-center justify-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold py-2 rounded-lg transition-colors cursor-pointer"
+                      className="px-3.5 flex items-center justify-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold py-2.5 rounded-xl transition-colors cursor-pointer"
+                      title="Delete this advertisement"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      <span>Delete Ad</span>
+                      <span className="hidden sm:inline">Delete</span>
                     </button>
                   </div>
                 </div>
               ) : (
                 /* Customer Self-Service Ad Editing Prompt */
                 <div className="pt-2 border-t border-gray-100 mt-2">
-                  <div className="bg-gradient-to-r from-orange-50/80 via-amber-50/70 to-orange-50/80 border border-orange-200/70 rounded-xl p-3 flex items-center justify-between gap-3 shadow-2xs">
+                  <div className="bg-gradient-to-r from-orange-50 via-amber-50 to-orange-50 border border-orange-200 rounded-2xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
                     <div className="text-left">
-                      <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                        <Edit className="w-3.5 h-3.5 text-[#FF5A36]" />
-                        <span>Posted this ad?</span>
-                      </p>
-                      <p className="text-[11px] text-gray-500 mt-0.5">
-                        Need to edit price, contact phone, photos or description?
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-[#FF5A36] animate-pulse" />
+                        <span className="text-xs font-bold text-gray-900">Are you the Seller / Owner?</span>
+                        <span className="text-[10px] bg-orange-100 text-[#FF5A36] font-bold px-1.5 py-0.2 rounded">Fast Edit</span>
+                      </div>
+                      <p className="text-[11px] text-gray-600 mt-0.5 leading-snug">
+                        Want to change price, update photos, edit phone number, or mark as sold?
                       </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => onRequestOwnerEdit && onRequestOwnerEdit(listing)}
-                      className="shrink-0 px-3 py-2 bg-[#FF5A36] hover:bg-[#E04826] text-white rounded-lg text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer hover:scale-102"
+                      className="w-full sm:w-auto shrink-0 px-4 py-2.5 bg-[#FF5A36] hover:bg-[#E04826] text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer hover:scale-102"
                     >
                       <Edit className="w-3.5 h-3.5" />
-                      <span>Edit Ad</span>
+                      <span>Edit My Ad & Price</span>
                     </button>
                   </div>
                 </div>
@@ -495,21 +600,45 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
             onClick={() => setIsZoomOpen(false)}
           >
             {/* Top Bar */}
-            <div className="w-full flex items-center justify-between text-white z-10">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <Camera className="w-4 h-4 text-[#FF5A36]" />
-                <span>
+            <div className="w-full flex items-center justify-between text-white z-10 gap-3">
+              <div className="flex items-center gap-2 text-sm font-semibold truncate">
+                <Camera className="w-4 h-4 text-[#FF5A36] shrink-0" />
+                <span className="truncate">
                   Photo {activeIdx + 1} of {gallery.length} • {listing.title}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setIsZoomOpen(false)}
-                className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
-                title="Close Zoom"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={handleDownloadActivePhoto}
+                  disabled={isDownloadingPhoto}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-all cursor-pointer"
+                  title="Download this high-resolution photo"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download Photo</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsZoomOpen(false);
+                    setIsFacebookFlyerOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1877F2] hover:bg-[#166fe5] text-white text-xs font-bold transition-all cursor-pointer shadow-sm"
+                  title="Create Facebook Promo Flyer"
+                >
+                  <Facebook className="w-3.5 h-3.5 fill-current" />
+                  <span>Facebook Flyer</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsZoomOpen(false)}
+                  className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+                  title="Close Zoom"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
             </div>
 
             {/* Centered Large Image */}
@@ -574,6 +703,13 @@ export const AdDetailModal: React.FC<AdDetailModalProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Facebook Promo Flyer & Image Downloader Modal */}
+      <FacebookFlyerModal
+        listing={listing}
+        isOpen={isFacebookFlyerOpen}
+        onClose={() => setIsFacebookFlyerOpen(false)}
+      />
     </motion.div>
   );
 };

@@ -95,7 +95,7 @@ interface AdminConfig {
 function getAdminConfig(): { password: string; autoApprove: boolean } {
   const result = {
     password: process.env.ADMIN_PASSWORD || 'admin123',
-    autoApprove: true, // Default: auto-approve customer ads so they appear live immediately
+    autoApprove: false, // Default: manual moderation required - customer ads must be confirmed by admin before going live
   };
   if (fs.existsSync(ADMIN_CONFIG_FILE)) {
     try {
@@ -500,7 +500,7 @@ async function startServer() {
       image: finalImage,
       images: finalImages,
       description: String(description).trim(),
-      status: adminCfg.autoApprove ? 'approved' : 'pending', // Auto-approved if setting enabled, else pending review
+      status: (adminCfg.autoApprove || (req.body.status === 'approved' && req.body.isAdminLoggedIn)) ? 'approved' : 'pending', // Pending review unless admin created or auto-approve enabled
       isFeatured: false,
       date: new Date().toISOString().split('T')[0],
       userId: userId ? String(userId) : 'system',

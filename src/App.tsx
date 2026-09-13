@@ -250,7 +250,7 @@ export default function App() {
   const fetchListings = async () => {
     setIsLoading(true);
     try {
-      const data = await api.getListings();
+      const data = await api.getListings({ status: 'all' });
       setListings(data);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Could not fetch advertisements';
@@ -264,10 +264,8 @@ export default function App() {
   const filteredListings = useMemo(() => {
     let result = [...listings];
 
-    // Marketplace view only shows approved listings
-    if (currentTab === 'marketplace') {
-      result = result.filter((item) => item.status === 'approved');
-    }
+    // Public marketplace view STRICTLY shows approved listings (pending ads require admin confirmation)
+    result = result.filter((item) => item.status === 'approved');
 
     // Category Filter
     if (selectedCategory !== 'All') {
@@ -386,7 +384,7 @@ export default function App() {
     setIsPostAdOpen(true);
   };
 
-  const handleSubmitAd = async (adData: Partial<Listing>, isEditId?: string) => {
+  const handleSubmitAd = async (adData: Partial<Listing>, isEditId?: string): Promise<Listing> => {
     try {
       if (isEditId) {
         const updated = await api.updateListing(isEditId, adData);
@@ -397,24 +395,27 @@ export default function App() {
           setSelectedListing(updated);
         }
         showToast('Advertisement updated successfully!', 'success');
+        setIsPostAdOpen(false);
+        setEditingListing(null);
+        return updated;
       } else {
         const created = await api.createListing({
           ...adData,
           userId: currentUser ? currentUser.id : undefined,
         });
+        api.addGuestListingId(created.id);
         setListings((prev) => [created, ...prev]);
 
         if (created.status === 'approved') {
           showToast('Advertisement published live immediately!', 'success');
         } else {
           showToast(
-            'Advertisement submitted! It will appear after quick admin review.',
+            'Advertisement submitted! It is now pending admin confirmation and will go live once approved.',
             'info'
           );
         }
+        return created;
       }
-      setIsPostAdOpen(false);
-      setEditingListing(null);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save advertisement';
       showToast(msg, 'error');
@@ -883,6 +884,7 @@ export default function App() {
         onCopyShareLink={handleCopyShareLink}
         isCompared={Boolean(selectedListing && compareIds.includes(selectedListing.id))}
         onToggleCompare={handleToggleCompare}
+        onApproveListing={handleApproveListing}
         onRequestOwnerEdit={(listing) => {
           setSelectedListing(null);
           setTargetListingForEdit(listing);
@@ -944,6 +946,11 @@ export default function App() {
         currentUser={currentUser}
         isAdminLoggedIn={isAdminLoggedIn}
         onToast={showToast}
+        onSelectListing={(listing) => {
+          setSelectedListing(listing);
+          setIsPostAdOpen(false);
+          setEditingListing(null);
+        }}
       />
 
       <AuthModals

@@ -53,7 +53,42 @@ export const api = {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Failed to create listing');
     }
-    return res.json();
+    const created: Listing = await res.json();
+    // If user is guest or creating an ad, remember on this device so they can easily edit
+    if (!this.getCurrentUser()) {
+      this.addGuestListingId(created.id);
+    }
+    return created;
+  },
+
+  getGuestListingIds(): string[] {
+    try {
+      const stored = localStorage.getItem('huta_guest_ad_ids');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  addGuestListingId(id: string): void {
+    try {
+      const current = this.getGuestListingIds();
+      if (!current.includes(id)) {
+        current.unshift(id);
+        localStorage.setItem('huta_guest_ad_ids', JSON.stringify(current));
+      }
+    } catch {
+      // ignore
+    }
+  },
+
+  removeGuestListingId(id: string): void {
+    try {
+      const current = this.getGuestListingIds().filter((adId) => adId !== id);
+      localStorage.setItem('huta_guest_ad_ids', JSON.stringify(current));
+    } catch {
+      // ignore
+    }
   },
 
   async updateListing(id: string, data: Partial<Listing>): Promise<Listing> {
@@ -114,6 +149,7 @@ export const api = {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error('Failed to delete listing');
+    this.removeGuestListingId(id);
     return res.json();
   },
 
